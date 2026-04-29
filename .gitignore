@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Dados de entrada grandes (baixar separadamente)
+GRAFOS/
+
+# Descrição do trabalho
+DESCRICAO/
+
+# Saídas geradas pelo programa
+saidas/
+relatorio/resultados/
+
+# Config local do Claude
+.claude/settings.local.json
