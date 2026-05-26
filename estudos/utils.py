@@ -18,11 +18,16 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 GRAFOS_DIR = ROOT / "GRAFOS"
+GRAFOS_W_DIR = ROOT / "GRAFOS 2"
+REDES_DIR = ROOT / "GRAFOS 2" / "REDES"
 RESULTADOS_DIR = ROOT / "relatorio" / "resultados"
 RESULTADOS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Lista padrao de grafos analisados (ordem de tamanho crescente)
 GRAFOS = [f"grafo_{i}.txt" for i in range(1, 7)]
+
+# Grafos com pesos da Parte 2
+GRAFOS_W = [f"grafo_W_{i}.txt" for i in range(1, 6)]
 
 # Limite de seguranca para representacao por matriz: numero maximo de
 # vertices acima do qual a matriz e considerada inviavel.

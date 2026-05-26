@@ -1,5 +1,6 @@
-"""Algoritmos sobre grafos: BFS, DFS, distancias, componentes."""
+"""Algoritmos sobre grafos: BFS, DFS, distancias, componentes, Dijkstra."""
 
+import heapq
 import math
 import random
 from collections import deque
@@ -309,3 +310,170 @@ def diameter_approx(
             if d > best:
                 best = d
     return best
+
+
+# ---------------------------------------------------------------------------
+# Caminhos minimos com pesos: Dijkstra (Parte 2)
+# ---------------------------------------------------------------------------
+
+
+class NegativeWeightError(ValueError):
+    """Levantada quando se tenta rodar Dijkstra em grafo com aresta negativa."""
+
+
+@dataclass
+class ShortestPathResult:
+    """Resultado de uma execucao de Dijkstra a partir de uma fonte.
+
+    dist[v]    = distancia minima de `source` ate v (math.inf se inalcancavel).
+    parent[v]  = predecessor de v na arvore de caminhos minimos.
+                 0 para a fonte; 0 tambem para vertices inalcancaveis.
+    Ambos os arrays tem tamanho n+1 (indice 0 nao e usado).
+    """
+    source: int
+    algorithm: str            # "dijkstra-vector" ou "dijkstra-heap"
+    dist: list[float]
+    parent: list[int]
+
+    def reached(self, v: int) -> bool:
+        return self.dist[v] != math.inf
+
+    def path_to(self, v: int) -> list[int]:
+        """Reconstroi o caminho minimo `source -> v` (incluindo extremos).
+
+        Retorna lista vazia se v nao for alcancavel.
+        """
+        if not (1 <= v < len(self.dist)):
+            raise ValueError(f"vertice {v} fora do intervalo [1, {len(self.dist) - 1}]")
+        if self.dist[v] == math.inf:
+            return []
+        path: list[int] = []
+        cur = v
+        while cur != 0:
+            path.append(cur)
+            if cur == self.source:
+                break
+            cur = self.parent[cur]
+        path.reverse()
+        return path
+
+
+def _check_dijkstra_preconditions(graph: Graph, source: int) -> None:
+    n = graph.n_vertices
+    if not (1 <= source <= n):
+        raise ValueError(f"fonte {source} fora do intervalo [1, {n}]")
+    if graph.has_negative_weight:
+        raise NegativeWeightError(
+            "a biblioteca ainda nao implementa caminhos minimos com pesos negativos"
+        )
+
+
+def dijkstra_vector(graph: Graph, source: int) -> ShortestPathResult:
+    """Dijkstra com vetor de distancias (sem heap).
+
+    A cada iteracao percorre todo o array de estimativas para escolher o
+    vertice nao visitado de menor distancia. Custo: Theta(V^2 + E). E
+    competitivo em grafos densos e/ou em grafos muito pequenos, onde a
+    constante simples do laco linear ganha do overhead do heap.
+    """
+    _check_dijkstra_preconditions(graph, source)
+    n = graph.n_vertices
+    INF = math.inf
+
+    dist = [INF] * (n + 1)
+    parent = [0] * (n + 1)
+    visited = bytearray(n + 1)  # 0 = nao visitado, 1 = finalizado
+
+    dist[source] = 0.0
+
+    for _ in range(n):
+        # 1) seleciona u nao visitado com menor dist (varredura linear)
+        u = -1
+        best = INF
+        for v in range(1, n + 1):
+            if not visited[v] and dist[v] < best:
+                best = dist[v]
+                u = v
+        if u == -1:
+            break  # restantes sao inalcancaveis
+        visited[u] = 1
+
+        # 2) relaxa todas as arestas saindo de u
+        du = dist[u]
+        for nb, w in graph.neighbors_with_weights(u):
+            if visited[nb]:
+                continue
+            alt = du + w
+            if alt < dist[nb]:
+                dist[nb] = alt
+                parent[nb] = u
+
+    return ShortestPathResult(
+        source=source, algorithm="dijkstra-vector", dist=dist, parent=parent
+    )
+
+
+def dijkstra_heap(graph: Graph, source: int) -> ShortestPathResult:
+    """Dijkstra com min-heap binario (`heapq`) e *lazy deletion*.
+
+    A biblioteca-padrao do Python nao oferece `decrease-key` em O(log n);
+    para contornar isso, sempre que uma distancia melhora, *inserimos uma
+    nova entrada* no heap em vez de atualizar a existente. Quando uma
+    entrada e desempilhada com distancia maior que `dist[v]`, ela e
+    obsoleta e e descartada.
+
+    O numero de entradas no heap fica em O(E) (cada relaxamento bem-sucedido
+    insere uma); cada operacao de pop/push e O(log E) = O(log V). Custo
+    total: O((V + E) log V) — equivalente assintotico ao decrease-key real.
+    Em troca de constante ligeiramente maior, evitamos manter um indexador
+    no heap, mantendo o codigo simples.
+    """
+    _check_dijkstra_preconditions(graph, source)
+    n = graph.n_vertices
+    INF = math.inf
+
+    dist = [INF] * (n + 1)
+    parent = [0] * (n + 1)
+    finalized = bytearray(n + 1)
+
+    dist[source] = 0.0
+    heap: list[tuple[float, int]] = [(0.0, source)]
+
+    while heap:
+        d, u = heapq.heappop(heap)
+        if finalized[u]:
+            continue  # entrada obsoleta
+        finalized[u] = 1
+
+        for nb, w in graph.neighbors_with_weights(u):
+            if finalized[nb]:
+                continue
+            alt = d + w
+            if alt < dist[nb]:
+                dist[nb] = alt
+                parent[nb] = u
+                heapq.heappush(heap, (alt, nb))
+
+    return ShortestPathResult(
+        source=source, algorithm="dijkstra-heap", dist=dist, parent=parent
+    )
+
+
+def shortest_path(
+    graph: Graph,
+    source: int,
+    target: int,
+    method: str = "heap",
+) -> tuple[float, list[int]]:
+    """Conveniencia: distancia minima e caminho de `source` a `target`.
+
+    `method` aceita 'heap' (default) ou 'vector'. Para grafos com pesos
+    negativos, levanta NegativeWeightError.
+    """
+    if method == "heap":
+        res = dijkstra_heap(graph, source)
+    elif method == "vector":
+        res = dijkstra_vector(graph, source)
+    else:
+        raise ValueError(f"method deve ser 'heap' ou 'vector', recebido: {method!r}")
+    return res.dist[target], res.path_to(target)

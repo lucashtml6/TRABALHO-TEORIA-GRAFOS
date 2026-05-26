@@ -5,6 +5,10 @@ __pycache__/
 
 # Dados de entrada grandes (baixar separadamente)
 GRAFOS/
+GRAFOS 2/
+
+# Apresentação (binário, gerada a partir de gerar_slides.py)
+relatorio/apresentacao.pptx
 
 # Descrição do trabalho
 DESCRICAO/

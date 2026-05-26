@@ -1,8 +1,11 @@
-# Trabalho de Teoria dos Grafos — Parte 1
+# Trabalho de Teoria dos Grafos — Partes 1 e 2
 
 Biblioteca em Python 3 para representação e análise de grafos não-direcionados, desenvolvida para a disciplina **COS 242 — Teoria dos Grafos (2025/2)** da Universidade Federal de Viçosa.
 
-Implementa duas representações (lista e matriz de adjacência) sob uma interface comum, e os algoritmos: **BFS, DFS, componentes conexas, distâncias e diâmetro**.
+Implementa duas representações (lista e matriz de adjacência) sob uma interface comum, e os algoritmos:
+
+- **Parte 1**: BFS, DFS, componentes conexas, distâncias (não-ponderadas) e diâmetro.
+- **Parte 2**: grafos com pesos reais nas arestas e algoritmo de **Dijkstra em duas formas** (vetor Θ(V²) e heap O((V+E) log V) com lazy deletion). Detecção e recusa de pesos negativos. Suporte a rótulos de vértices (`nome → id`) para a rede de colaboração entre pesquisadores.
 
 ## Estrutura do projeto
 
@@ -39,16 +42,16 @@ pip install numpy
 
 ## Arquivos de grafo
 
-A pasta `GRAFOS/` **não está no repositório** (os arquivos somam ~1 GB, com `grafo_6.txt` chegando a 722 MB). Para rodar os estudos de caso, baixe os arquivos `grafo_1.txt` ... `grafo_6.txt` e coloque-os em `GRAFOS/`.
+As pastas `GRAFOS/` (Parte 1) e `GRAFOS 2/` (Parte 2) **não estão no repositório** (~2.5 GB no total). Para a Parte 1, baixe `grafo_1.txt` ... `grafo_6.txt` em `GRAFOS/`. Para a Parte 2, baixe `grafo_W_1.txt` ... `grafo_W_5.txt` em `GRAFOS 2/`, e `rede_colaboracao.txt` + `rede_colaboracao_vertices.txt` em `GRAFOS 2/REDES/`.
 
 **Formato de entrada** (texto):
 ```
 n
-u1 v1
-u2 v2
+u1 v1 [w1]
+u2 v2 [w2]
 ...
 ```
-Onde `n` é o número de vértices e cada linha seguinte representa uma aresta entre `u` e `v` (vértices indexados em 1..n).
+Onde `n` é o número de vértices e cada linha seguinte representa uma aresta entre `u` e `v`. A terceira coluna (peso `w`, real) é **opcional**: se presente, o grafo é ponderado; se ausente, é não-ponderado. O loader detecta o formato automaticamente.
 
 ## Como rodar
 
@@ -84,10 +87,30 @@ Cada estudo gera um `.csv` e um `.md` em `relatorio/resultados/`.
 | EC5 | Distâncias entre pares de vértices |
 | EC6 | Componentes conexas |
 | EC7 | Diâmetro |
+| EC8 | (Parte 2) Distância + caminho mínimo do vértice 10 → {20, 30, 40, 50, 60} nos grafos_W |
+| EC9 | (Parte 2) Tempo médio de Dijkstra (vetor vs heap), k=100 fontes aleatórias |
+| EC10 | (Parte 2) Rede de colaboração: distância de E. W. Dijkstra a outros pesquisadores |
+
+Para rodar a Parte 2:
+
+```bash
+# Demo do grafo da figura 1 do PDF da Parte 2
+python main_p2.py
+
+# Estudos EC8+EC9 nos grafos_W (grandes graphs podem ser pulados com --max-n)
+python estudos/ec_p2_runner.py --only 1 2 3
+
+# Estudo separado para os grafos enormes (heap-only)
+python estudos/ec_p2_runner_grandes.py --only 4 5
+
+# Rede de colaboração
+python estudos/ec10_rede_colaboracao.py
+```
 
 ## Relatório
 
-A análise completa dos resultados está em [relatorio/relatorio.md](relatorio/relatorio.md).
+- Parte 1: [relatorio/relatorio.md](relatorio/relatorio.md)
+- Parte 2: [relatorio/relatorio_P2.md](relatorio/relatorio_P2.md)
 
 ## Observações de implementação
 

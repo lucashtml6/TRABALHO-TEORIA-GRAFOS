@@ -1,7 +1,13 @@
 from .graph_base import Graph
 from .graph_list import GraphList
 from .graph_matrix import GraphMatrix
-from .io_utils import load_graph, write_search_tree, write_components, write_summary
+from .io_utils import (
+    load_graph,
+    load_vertex_labels,
+    write_search_tree,
+    write_components,
+    write_summary,
+)
 from .algorithms import (
     bfs,
     dfs,
@@ -9,8 +15,13 @@ from .algorithms import (
     distance,
     diameter,
     diameter_approx,
+    dijkstra_vector,
+    dijkstra_heap,
+    shortest_path,
     ConnectedComponents,
     SearchResult,
+    ShortestPathResult,
+    NegativeWeightError,
 )
 
 __all__ = [
@@ -18,6 +29,7 @@ __all__ = [
     "GraphList",
     "GraphMatrix",
     "load_graph",
+    "load_vertex_labels",
     "write_search_tree",
     "write_components",
     "write_summary",
@@ -27,6 +39,11 @@ __all__ = [
     "distance",
     "diameter",
     "diameter_approx",
+    "dijkstra_vector",
+    "dijkstra_heap",
+    "shortest_path",
     "ConnectedComponents",
     "SearchResult",
+    "ShortestPathResult",
+    "NegativeWeightError",
 ]

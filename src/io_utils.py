@@ -23,26 +23,130 @@ def load_graph(
 
     Formato esperado:
         - linha 1: numero de vertices N
-        - linhas seguintes: pares "u v" representando arestas
-          (vertices em 1..N, separados por espaco ou tab)
+        - linhas seguintes: 'u v' (Parte 1) ou 'u v w' (Parte 2, w = peso real)
 
-    Linhas em branco e comentarios iniciados com '#' sao ignorados.
+    O formato e detectado automaticamente pelo numero de tokens na primeira
+    aresta (2 -> nao ponderado; 3 -> ponderado).
 
-    Quando dedup=True (padrao), arestas repetidas no arquivo sao
-    eliminadas (chamando graph.deduplicate() apos a carga). Em listas
-    de adjacencia, a operacao e feita por vertice para evitar pico de
-    memoria; em matriz, a propria estrutura ja descarta duplicatas.
+    O loader e otimizado para grafos grandes: le o arquivo inteiro de uma
+    vez, faz um unico `str.split()`, e popula a lista de adjacencia
+    *diretamente* (bypass do `add_edge`, que faria validacao por aresta).
+    Para `representation='matrix'`, usamos `add_edge` normal (a matriz
+    nao se beneficia tanto, e e usada apenas em grafos pequenos).
+
+    Comentarios iniciados com '#' ou linhas em branco sao ignorados — mas
+    apenas no cabecalho. Para arquivos muito grandes assumimos formato
+    estrito ja a partir da primeira aresta.
     """
     path = Path(path)
     if representation == "list":
-        graph_cls = GraphList
+        return _load_list_fast(path, dedup)
     elif representation == "matrix":
-        graph_cls = GraphMatrix
+        return _load_matrix(path, dedup)
     else:
         raise ValueError(
             f"representation deve ser 'list' ou 'matrix', recebido: {representation!r}"
         )
 
+
+def _load_list_fast(path: Path, dedup: bool) -> Graph:
+    """Loader rapido especifico para lista de adjacencia.
+
+    Le todo o arquivo de uma vez, tokeniza em uma chamada e popula
+    diretamente `_adj`. Em grafos grandes (milhoes de arestas), e
+    ~5-10x mais rapido que iterar linha a linha.
+    """
+    with path.open("r", encoding="utf-8") as f:
+        # 1) consome cabecalhos (linhas em branco / comentarios) e le N
+        n = None
+        while n is None:
+            line = f.readline()
+            if not line:
+                raise ValueError(f"arquivo vazio ou sem header: {path}")
+            s = line.strip()
+            if not s or s.startswith("#"):
+                continue
+            try:
+                n = int(s)
+            except ValueError as e:
+                raise ValueError(
+                    f"primeira linha deve ser o numero de vertices, encontrei: {s!r}"
+                ) from e
+
+        # 2) le o resto do arquivo de uma vez (texto bruto)
+        rest = f.read()
+
+    graph = GraphList(n)
+    if not rest.strip():
+        return graph  # grafo sem arestas
+
+    tokens = rest.split()
+    n_tok = len(tokens)
+    if n_tok == 0:
+        return graph
+
+    # 3) detecta formato a partir do numero total de tokens vs numero de linhas
+    #    (estimativa pela primeira linha)
+    first_nl = rest.find("\n")
+    first_line = rest[:first_nl] if first_nl != -1 else rest
+    first_parts = first_line.split()
+    if len(first_parts) == 2:
+        weighted = False
+        cols = 2
+    elif len(first_parts) == 3:
+        weighted = True
+        cols = 3
+    else:
+        raise ValueError(
+            f"primeira aresta mal formatada (esperado 'u v' ou 'u v w'): {first_line!r}"
+        )
+    if n_tok % cols != 0:
+        raise ValueError(
+            f"numero de tokens ({n_tok}) nao e multiplo de {cols} — arquivo malformado"
+        )
+
+    # 4) preenche _adj diretamente — bypass add_edge para velocidade
+    adj = graph._adj
+    has_neg = False
+    weighted_flag = False
+    if weighted:
+        m = 0
+        for i in range(0, n_tok, 3):
+            u = int(tokens[i])
+            v = int(tokens[i + 1])
+            if u == v:
+                continue
+            w = float(tokens[i + 2])
+            adj[u].append((v, w))
+            adj[v].append((u, w))
+            m += 1
+            if w != 1.0:
+                weighted_flag = True
+            if w < 0.0:
+                has_neg = True
+    else:
+        m = 0
+        for i in range(0, n_tok, 2):
+            u = int(tokens[i])
+            v = int(tokens[i + 1])
+            if u == v:
+                continue
+            adj[u].append((v, 1.0))
+            adj[v].append((u, 1.0))
+            m += 1
+
+    graph._m = m
+    graph._is_weighted = weighted_flag or weighted
+    graph._has_negative_weight = has_neg
+
+    if dedup:
+        graph.deduplicate()
+    return graph
+
+
+def _load_matrix(path: Path, dedup: bool) -> Graph:
+    """Loader linha-a-linha para matriz. Mantemos o caminho simples — a
+    matriz e usada so em grafos pequenos onde performance nao e critica."""
     with path.open("r", encoding="utf-8") as f:
         first = _next_meaningful_line(f)
         if first is None:
@@ -54,24 +158,80 @@ def load_graph(
                 f"primeira linha deve ser o numero de vertices, encontrei: {first!r}"
             ) from e
 
-        graph = graph_cls(n)
+        graph = GraphMatrix(n)
+        weighted = None
 
         for line_num, raw in enumerate(f, start=2):
             line = raw.strip()
             if not line or line.startswith("#"):
                 continue
             parts = line.split()
-            if len(parts) != 2:
-                raise ValueError(
-                    f"linha {line_num} mal formatada (esperado 'u v'): {line!r}"
-                )
-            u, v = int(parts[0]), int(parts[1])
-            graph.add_edge(u, v)
+            if weighted is None:
+                weighted = len(parts) == 3
+            if weighted:
+                u, v = int(parts[0]), int(parts[1])
+                graph.add_edge(u, v, float(parts[2]))
+            else:
+                graph.add_edge(int(parts[0]), int(parts[1]))
+
+        if weighted:
+            graph._mark_weighted()
 
     if dedup:
         graph.deduplicate()
-
     return graph
+
+
+def _fix_mojibake(s: str) -> str:
+    """Tenta corrigir UTF-8 duplamente codificado (mojibake CP1252-via-UTF-8).
+
+    Se a string contem sequencias caracteristicas de mojibake (ex. 'Ã‰' para
+    'É', 'Ã¡' para 'á'), reencodamos como CP1252 e re-decodificamos como
+    UTF-8. Em caso de falha (a string ja estava certa), retornamos o original.
+    """
+    if "Ã" not in s and "Â" not in s:
+        return s
+    try:
+        return s.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+
+
+def load_vertex_labels(
+    path: PathLike,
+    fix_mojibake: bool = True,
+) -> tuple[dict[int, str], dict[str, int]]:
+    """Le um arquivo de mapeamento 'id,nome' (uma linha por vertice).
+
+    Retorna (id_to_name, name_to_id). Usado pela rede de colaboracao
+    (estudos da Parte 2). Encoding UTF-8.
+
+    Se fix_mojibake=True (default), tenta corrigir nomes que sofreram
+    dupla codificacao (UTF-8 lido como CP1252 e re-encodado em UTF-8) —
+    sintoma comum em arquivos editados em editores Windows com encoding
+    errado. Sem isso, "Éva Tardos" aparece como "Ã‰va Tardos" no Python.
+    """
+    path = Path(path)
+    id_to_name: dict[int, str] = {}
+    name_to_id: dict[str, int] = {}
+    with path.open("r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.rstrip("\r\n")
+            if not line:
+                continue
+            idx = line.find(",")
+            if idx == -1:
+                continue
+            try:
+                vid = int(line[:idx])
+            except ValueError:
+                continue
+            name = line[idx + 1:].strip()
+            if fix_mojibake:
+                name = _fix_mojibake(name)
+            id_to_name[vid] = name
+            name_to_id[name] = vid
+    return id_to_name, name_to_id
 
 
 def _next_meaningful_line(f) -> str | None:
