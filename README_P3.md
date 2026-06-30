@@ -48,17 +48,17 @@ A biblioteca das Partes 1 e 2 ganhou três capacidades novas:
 
 | grafo     | Bellman-Ford | Dijkstra |  Quem ganha?         |
 |-----------|-------------:|---------:|:---------------------|
-| grafo_W_1 |   0,6 ms*    | —        | * aborta no ciclo    |
-| grafo_W_2 |    536 ms    |  236 ms  | Dijkstra ~2,3× 🏆    |
-| grafo_W_3 |  4 832 ms    | 3 263 ms | Dijkstra ~1,5× 🏆    |
+| grafo_W_1 |    102 ms*   | —        | * aborta no ciclo    |
+| grafo_W_2 |  1 668 ms    |  218 ms  | Dijkstra ~7,6× 🏆    |
+| grafo_W_3 | 17 038 ms    | 3 072 ms | Dijkstra ~5,5× 🏆    |
 | grafo_W_4 |  INVIÁVEL    | INVIÁVEL | memória > 16 GB      |
 | grafo_W_5 |  INVIÁVEL    | INVIÁVEL | memória > 16 GB      |
 
 ### 💡 Destaques
 
-- **Dijkstra é mais rápido** onde é aplicável: finaliza cada vértice **uma vez só**. O Bellman-Ford reprocessa vértices até estabilizar.
-- A vantagem do Dijkstra **encolhe** em grafos densos (2,3× → 1,5×): o custo passa a ser dominado pela varredura das arestas, que os dois pagam.
-- **As otimizações são tudo.** O Bellman-Ford ingênuo faria V−1 varreduras completas — no `grafo_W_3` seriam **~600 bilhões** de operações por execução (dezenas de minutos). Com as duas otimizações, ele converge em **poucas rodadas** → ~5 s. **Sem elas, o estudo de caso seria impossível.**
+- **Dijkstra é bem mais rápido** onde é aplicável (~5–8×): finaliza cada vértice **uma vez só**, tocando cada aresta uma vez. O Bellman-Ford de Yen faz **varreduras completas** a cada rodada.
+- Moral: **sem pesos negativos, use Dijkstra.** O Bellman-Ford é o preço da generalidade de aceitar pesos negativos.
+- **As otimizações são tudo.** O Bellman-Ford ingênuo faria V−1 varreduras completas — no `grafo_W_3` seriam **~600 bilhões** de operações por execução (dezenas de minutos). Com as duas otimizações, ele converge em **poucas passadas** → ~17 s. **Sem elas, o estudo de caso seria impossível.**
 
 ---
 
@@ -66,8 +66,8 @@ A biblioteca das Partes 1 e 2 ganhou três capacidades novas:
 
 | # | Otimização | Em uma frase |
 |---|------------|--------------|
-| 1 | **Parada antecipada** | Se uma rodada não melhora nada, acabou — não precisa das V−1 passadas. |
-| 2 | **Só os vértices atualizados** | Só relaxa as arestas de quem mudou na rodada anterior (conjunto ativo / SPFA). |
+| 1 | **Otimização de Yen** | Divide as arestas em "para frente" (`u→v`, `v>u`) e "para trás" (`v<u`); cada rodada relaxa em ordem **crescente** e depois **decrescente** → corta o nº de passadas ~pela metade. |
+| 2 | **Parada antecipada** | Se uma rodada inteira não melhora nada, acabou — não precisa das V−1 passadas. |
 
 **Detecção de ciclo negativo (bônus técnico):** em vez de esperar V iterações, verificamos o **grafo de predecessores** — qualquer ciclo ali já é negativo. Detectamos o ciclo do `grafo_W_1` em **frações de milissegundo**, no instante em que ele se fecha.
 

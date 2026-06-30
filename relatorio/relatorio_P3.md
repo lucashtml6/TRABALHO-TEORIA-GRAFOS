@@ -29,35 +29,35 @@ Implementamos isso de duas formas: `GraphList.reverse()` constrói o transposto 
 
 ### 1.3. Algoritmo de Bellman-Ford com as duas otimizações
 
-O Bellman-Ford clássico executa sempre **V−1 varreduras completas** de todas as `E` arestas — custo Θ(V·E) — e detecta ciclos negativos com uma varredura extra. Implementamos as **duas otimizações discutidas em aula**, que se combinam na versão baseada em **fila** (conhecida como SPFA):
+O Bellman-Ford clássico executa sempre **V−1 varreduras completas** de todas as `E` arestas — custo Θ(V·E) — e detecta ciclos negativos com uma varredura extra. Implementamos as **duas otimizações discutidas em aula**:
 
-**Otimização 1 — parada antecipada.** Trabalhamos por **rodadas**: cada rodada relaxa as arestas e calcula o conjunto de vértices melhorados. Se uma rodada não melhora **nenhuma** estimativa (conjunto ativo vazio), o algoritmo já convergiu e paramos imediatamente, sem completar as V−1 passadas.
+**Otimização 1 — otimização de Yen (1970).** Fixamos a ordem natural dos vértices (1..n) e particionamos as arestas de saída de cada vértice em duas classes: **para frente** (`u → v` com `v > u`) e **para trás** (`u → v` com `v < u`). Cada rodada faz **duas varreduras**: primeiro percorre os vértices em ordem **crescente**, relaxando só as arestas para frente; depois em ordem **decrescente**, relaxando só as arestas para trás. Como dentro de cada varredura um vértice já usa as estimativas atualizadas pelos vértices processados antes dele, uma única rodada propaga o caminho mínimo por uma subsequência inteira de índices crescentes seguida de uma de índices decrescentes — o que **mais que dobra o progresso por rodada** e reduz o número de passadas necessárias de V−1 para cerca de **V/2**.
 
-**Otimização 2 — processar apenas vértices atualizados (conjunto ativo).** Em vez de relaxar **todas** as arestas em toda passada, mantemos o conjunto dos vértices cuja estimativa mudou na rodada anterior: somente as arestas de saída desses vértices podem produzir melhora na rodada seguinte (é a ideia da fila/SPFA, aqui organizada por camadas). As duas ideias se encaixam naturalmente — **quando o conjunto ativo esvazia, não há mais melhora possível**, que é precisamente o critério da parada antecipada.
+**Otimização 2 — parada antecipada (early termination).** Se uma rodada completa (as duas varreduras) não melhora **nenhuma** estimativa de distância, o algoritmo já convergiu e paramos imediatamente, sem completar o limite de passadas.
 
 O núcleo do laço cabe em poucas linhas:
 
 ```python
-while active:
-    nxt = []
-    for u in active:
-        in_active[u] = 0
+while changed:
+    changed = False
+    # Yen — 1a varredura: ordem crescente, arestas "para frente" (v > u)
+    for u in range(1, n + 1):
         du = dist[u]
         for v, w in graph.neighbors_with_weights(u):
-            alt = du + w
-            if alt < dist[v]:
-                if check_cycles and _is_ancestor(parent, v, u, n):
-                    has_negative_cycle = True; break   # fecharia um ciclo
-                dist[v] = alt
-                parent[v] = u
-                if not in_active[v]:
-                    in_active[v] = 1; nxt.append(v)
-    active = nxt
+            if v > u and du + w < dist[v]:
+                dist[v] = du + w; parent[v] = u; changed = True
+    # Yen — 2a varredura: ordem decrescente, arestas "para tras" (v < u)
+    for u in range(n, 0, -1):
+        du = dist[u]
+        for v, w in graph.neighbors_with_weights(u):
+            if v < u and du + w < dist[v]:
+                dist[v] = du + w; parent[v] = u; changed = True
 ```
+*(no código real, antes de gravar `parent[v] = u` checamos ainda a ancestralidade para detectar ciclo negativo — ver abaixo.)*
 
-**Detecção de ciclo negativo.** Pelo lema clássico, se em algum momento o grafo de predecessores (vetor `parent`) contém um ciclo, esse ciclo é necessariamente **negativo**. Por isso, *antes* de gravar `parent[v] = u` verificamos se `v` já é ancestral de `u` na floresta de predecessores (`_is_ancestor`): em caso afirmativo, fechar a aresta criaria um ciclo, e abortamos com `has_negative_cycle = True`. Essa abordagem (*subtree-disassembly*) tem duas vantagens sobre a detecção clássica por contagem ("se um vértice é relaxado V vezes, há ciclo"): (i) **detecta no instante exato** em que o ciclo se fecha — em poucas rodadas, e não após V — e (ii) **evita falsos positivos** de ciclos transitórios que surgem com atualização *in-place*. Só ativamos a checagem quando o grafo tem alguma aresta negativa (custo zero nos demais). O algoritmo retorna sempre o vetor de **distâncias**, a **árvore de caminhos mínimos** (`parent`) e a flag, como pede o enunciado.
+**Detecção de ciclo negativo.** Pelo lema clássico, se em algum momento o grafo de predecessores (vetor `parent`) contém um ciclo, esse ciclo é necessariamente **negativo**. Por isso, *antes* de gravar `parent[v] = u` verificamos se `v` já é ancestral de `u` na floresta de predecessores (`_is_ancestor`): em caso afirmativo, fechar a aresta criaria um ciclo, e abortamos com `has_negative_cycle = True`. Essa abordagem (*subtree-disassembly*) tem duas vantagens sobre a detecção clássica por contagem ("se um vértice é relaxado V vezes, há ciclo"): (i) **detecta no instante exato** em que o ciclo se fecha — e não após V passadas — e (ii) **evita falsos positivos** de ciclos transitórios que surgem com atualização *in-place*. Só ativamos a checagem quando o grafo tem alguma aresta negativa (custo zero nos demais). O algoritmo retorna sempre o vetor de **distâncias**, a **árvore de caminhos mínimos** (`parent`) e a flag, como pede o enunciado.
 
-**Por que a otimização importa.** No pior caso o custo segue Θ(V·E), mas na prática a versão com conjunto ativo é muito mais rápida — próxima de O(k·E) com k = número de rodadas até convergir (pequeno nestes grafos de mundo pequeno). Sem ela, o Bellman-Ford ingênuo em `grafo_W_3` (V=10⁵, E=6,1·10⁶) faria ~6·10¹¹ operações por execução — dezenas de minutos em Python. **As otimizações são o que torna o estudo de caso possível.**
+**Por que a otimização importa.** No pior caso o custo segue Θ(V·E), mas a otimização de Yen corta o número de passadas ~pela metade e a parada antecipada encerra assim que há convergência. Sem elas, o Bellman-Ford ingênuo em `grafo_W_3` (V=10⁵, E=6,1·10⁶) faria sempre V−1 ≈ 10⁵ passadas × 6,1·10⁶ ≈ **6·10¹¹ operações por execução** — dezenas de minutos em Python. Com as otimizações, ele converge em poucas passadas, e cada execução custa ~17 s.
 
 **Ambiente das medições.** Windows 11, Python 3.14. Todas as medidas de tempo usam `time.perf_counter()`, são a **média de 10 rodadas** e **excluem o I/O** (leitura/escrita em disco).
 
@@ -91,17 +91,17 @@ Tempo médio de **10 rodadas**, sem I/O. BF e Dijkstra rodam exatamente a mesma 
 
 | grafo     | n         | m          | Bellman-Ford (ms) | Dijkstra (ms) | Dijkstra/BF |
 |-----------|----------:|-----------:|------------------:|--------------:|:-----------:|
-| grafo_W_1 |    25 000 |    549 953 |             0,58¹ |       — (n/a) |     —       |
-| grafo_W_2 |    25 000 |    824 964 |            536,29 |        235,57 |   0,44×     |
-| grafo_W_3 |   100 000 |  6 099 941 |          4 832,24 |      3 263,40 |   0,68×     |
+| grafo_W_1 |    25 000 |    549 953 |           102,16¹ |       — (n/a) |     —       |
+| grafo_W_2 |    25 000 |    824 964 |          1 668,47 |        218,26 |   0,13×     |
+| grafo_W_3 |   100 000 |  6 099 941 |         17 038,34 |      3 072,47 |   0,18×     |
 | grafo_W_4 | 1 000 000 | 30 999 978 |   INVIÁVEL — ver §2.1 | |             |
 | grafo_W_5 |10 000 000 | 39 999 995 |   INVIÁVEL — ver §2.1 | |             |
 
-¹ `grafo_W_1` aborta assim que o ciclo negativo é fechado (em poucas rodadas), por isso o tempo é baixíssimo — ele **não** percorre o grafo todo.
+¹ `grafo_W_1` aborta assim que o ciclo negativo é fechado, sem percorrer o grafo todo — por isso o tempo (~102 ms) é muito menor que o de uma execução completa.
 
-**Discussão.** Em todos os grafos sem ciclo negativo, o **Dijkstra é mais rápido** que o Bellman-Ford (Dijkstra/BF < 1), como esperado: o Dijkstra finaliza cada vértice **uma única vez** (cada aresta é relaxada no máximo uma vez), enquanto o Bellman-Ford pode reprocessar um vértice em várias rodadas até as estimativas estabilizarem. A vantagem do Dijkstra **diminui** com a densidade (0,44× em `grafo_W_2` vs 0,68× em `grafo_W_3`): em grafos mais densos o custo passa a ser dominado pela varredura das arestas, que ambos pagam, e o overhead do heap do Dijkstra fica relativamente maior.
+**Discussão.** Em todos os grafos sem ciclo negativo, o **Dijkstra é bem mais rápido** que o Bellman-Ford — ~7,6× em `grafo_W_2` e ~5,5× em `grafo_W_3` (Dijkstra/BF de 0,13× e 0,18×). É o esperado: o Dijkstra finaliza cada vértice **uma única vez** (cada aresta é relaxada no máximo uma vez), enquanto o Bellman-Ford de Yen executa **varreduras completas** de todos os vértices e arestas a cada rodada, por várias rodadas, até convergir. A diferença de constante é grande justamente porque o Dijkstra "toca" cada aresta uma vez só, ao passo que o Bellman-Ford a revisita em toda passada. A moral é direta: **quando não há pesos negativos, use Dijkstra**; o Bellman-Ford é o preço a pagar pela generalidade de aceitar pesos negativos.
 
-O ponto pedagógico central, porém, é o **papel das otimizações**. O Bellman-Ford ingênuo faria sempre V−1 varreduras completas — em `grafo_W_3` isso seria 99 999 × 6,1M ≈ **6×10¹¹ operações por execução**, dezenas de minutos em Python. Com as duas otimizações (conjunto ativo + parada antecipada), o algoritmo converge em **poucas rodadas** (estes grafos têm diâmetro pequeno), e cada execução custa ~4,8 s. **Sem as otimizações, o estudo de caso seria inviável já em `grafo_W_3`** — e completamente impossível em `grafo_W_4`/`W_5`. O caso de `grafo_W_1` ilustra a outra ponta: a detecção de ciclo negativo via *subtree-disassembly* dispara assim que o ciclo se fecha, em frações de milissegundo, sem precisar das V rodadas que a detecção por contagem exigiria.
+Ainda assim, o **papel das otimizações** é o ponto central. O Bellman-Ford ingênuo faria sempre V−1 varreduras completas — em `grafo_W_3` seriam ~10⁵ passadas × 6,1M ≈ **6×10¹¹ operações por execução**, dezenas de minutos em Python. Com a **otimização de Yen** (que corta as passadas ~pela metade) e a **parada antecipada** (que encerra na convergência), o algoritmo termina em poucas passadas e cada execução custa ~17 s. **Sem as otimizações, o estudo de caso seria inviável já em `grafo_W_3`** — e completamente impossível em `grafo_W_4`/`W_5`. O caso de `grafo_W_1` ilustra a outra ponta: a detecção de ciclo negativo via *subtree-disassembly* dispara assim que o ciclo se fecha, sem precisar das V passadas que a detecção por contagem exigiria.
 
 #### 2.1. Sobre `grafo_W_4` e `grafo_W_5` (inviabilidade)
 
@@ -113,6 +113,6 @@ Como na Parte 2, os dois maiores grafos esbarram no **limite de memória** de um
 
 A Parte 3 generalizou a biblioteca para **grafos direcionados com pesos** com uma alteração cirúrgica — uma flag `directed` na representação — preservando integralmente os algoritmos da Parte 1/2: **BFS, DFS e Dijkstra funcionam em grafos direcionados sem nenhuma modificação**, pois sempre percorreram o grafo por suas arestas de saída. O truque do **grafo invertido** permitiu responder "distância até o vértice 100" com uma única execução de um algoritmo de fonte única, e serviu de validação cruzada (as distâncias de BF e Dijkstra coincidiram exatamente).
 
-O **Bellman-Ford** foi implementado com as **duas otimizações** discutidas em aula — processar apenas o conjunto de vértices atualizados e parar quando não há mais melhora — que, juntas, transformam um algoritmo Θ(V·E) em algo próximo de O(k·E) com k pequeno nestes grafos de mundo pequeno. Foi essa diferença que tornou os estudos de caso **viáveis em escala** (milhões de arestas). A **detecção de ciclo negativo** foi feita pela verificação de ancestralidade na floresta de predecessores (*subtree-disassembly*), que detecta o ciclo no instante em que ele se fecha — evitando tanto falsos positivos de ciclos transitórios quanto o custo proibitivo da detecção por contagem de relaxamentos.
+O **Bellman-Ford** foi implementado com as **duas otimizações** discutidas em aula — a **otimização de Yen** (varreduras alternadas para frente/para trás, que cortam o número de passadas ~pela metade) e a **parada antecipada** (encerrar quando uma passada não melhora nada) —, que reduziram o número de passadas o suficiente para tornar os estudos de caso **viáveis em escala** (milhões de arestas). Mesmo otimizado, o Bellman-Ford ficou ~5–8× mais lento que o Dijkstra nos grafos sem pesos negativos, confirmando que o Dijkstra é a escolha quando não há arestas negativas. A **detecção de ciclo negativo** foi feita pela verificação de ancestralidade na floresta de predecessores (*subtree-disassembly*), que detecta o ciclo no instante em que ele se fecha — evitando tanto falsos positivos de ciclos transitórios quanto o custo proibitivo da detecção por contagem de relaxamentos.
 
 O achado mais interessante dos estudos foi `grafo_W_1`: o único com pesos negativos, ele contém um **ciclo negativo alcançável**, de modo que as distâncias mínimas até o vértice 100 **não são bem definidas** — um lembrete concreto de por que o Bellman-Ford (e não o Dijkstra) é necessário quando há pesos negativos, e de por que a detecção de ciclos negativos é parte essencial do algoritmo.

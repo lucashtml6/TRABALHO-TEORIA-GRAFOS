@@ -5,7 +5,7 @@ vertice 100 sobre o grafo com as **arestas invertidas** (d(v→100) = d_invertid
 
 | grafo         | algoritmo    | d(10→100) | d(20→100) | d(30→100) | ciclo neg. |
 |---------------|--------------|-----------|-----------|-----------|------------|
-| grafo_W_1.txt | Bellman-Ford | inf       | 3.5900    | inf       | SIM        |
+| grafo_W_1.txt | Bellman-Ford | 8.3000    | 3.5900    | 6.6800    | SIM        |
 | grafo_W_2.txt | Bellman-Ford | 10.4700   | 8.4800    | 8.7100    | nao        |
 | grafo_W_2.txt | Dijkstra     | 10.4700   | 8.4800    | 8.7100    | —          |
 | grafo_W_3.txt | Bellman-Ford | 4.6300    | 5.4200    | 4.6700    | nao        |

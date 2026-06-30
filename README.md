@@ -6,7 +6,7 @@ Implementa duas representações (lista e matriz de adjacência) sob uma interfa
 
 - **Parte 1**: BFS, DFS, componentes conexas, distâncias (não-ponderadas) e diâmetro.
 - **Parte 2**: grafos com pesos reais nas arestas e algoritmo de **Dijkstra em duas formas** (vetor Θ(V²) e heap O((V+E) log V) com lazy deletion). Detecção e recusa de pesos negativos. Suporte a rótulos de vértices (`nome → id`) para a rede de colaboração entre pesquisadores.
-- **Parte 3**: **grafos direcionados** com pesos (flag `directed`), BFS/DFS/Dijkstra rodando em grafos direcionados, grafo **invertido** (transposto), e algoritmo de **Bellman-Ford** com as duas otimizações (conjunto ativo + parada antecipada) e detecção de ciclo negativo. → **[README_P3.md](README_P3.md)** (base para os slides).
+- **Parte 3**: **grafos direcionados** com pesos (flag `directed`), BFS/DFS/Dijkstra rodando em grafos direcionados, grafo **invertido** (transposto), e algoritmo de **Bellman-Ford** com as duas otimizações (otimização de Yen + parada antecipada) e detecção de ciclo negativo. → **[README_P3.md](README_P3.md)** (base para os slides).
 
 ## Estrutura do projeto
 

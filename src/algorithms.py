@@ -537,16 +537,20 @@ def bellman_ford(graph: Graph, source: int) -> BellmanFordResult:
     *duas otimizacoes* discutidas em aula sobre o Bellman-Ford classico
     (que sempre executa V-1 varreduras completas das E arestas, Theta(V*E)):
 
-    Otimizacao 1 — parada antecipada. Trabalhamos por *rodadas*: cada rodada
-    relaxa as arestas e calcula o conjunto de vertices melhorados. Se uma
-    rodada nao melhora nenhuma estimativa (conjunto ativo vazio), o algoritmo
-    ja convergiu e paramos imediatamente, sem completar as V-1 passadas.
+    Otimizacao 1 — otimizacao de Yen (1970). Fixamos a ordem natural dos
+    vertices (1..n) e particionamos as arestas de saida de cada vertice em
+    "para frente" (u -> v com v > u) e "para tras" (u -> v com v < u). Cada
+    rodada faz DUAS varreduras: primeiro percorre os vertices em ordem
+    CRESCENTE relaxando apenas as arestas para frente, depois em ordem
+    DECRESCENTE relaxando apenas as arestas para tras. Como dentro de cada
+    varredura um vertice ja usa as estimativas atualizadas pelos vertices
+    processados antes dele, o "comprimento" do caminho propagado por rodada
+    mais que dobra — reduzindo o numero de passadas necessarias para ~V/2.
 
-    Otimizacao 2 — processar apenas vertices atualizados (conjunto ativo). Em
-    vez de relaxar TODAS as arestas a cada rodada, mantemos o conjunto dos
-    vertices cuja estimativa mudou na rodada anterior: so as arestas de saida
-    desses vertices podem gerar melhora na rodada seguinte (e a ideia da
-    fila/SPFA, aqui organizada por camadas).
+    Otimizacao 2 — parada antecipada (early termination). Se uma rodada
+    completa (as duas varreduras) nao melhora NENHUMA estimativa de distancia,
+    o algoritmo ja convergiu e paramos imediatamente, sem completar o limite
+    de passadas.
 
     Deteccao de ciclo negativo: sem arestas negativas nenhum ciclo negativo
     pode existir e pulamos a checagem (custo zero). Havendo arestas negativas,
@@ -557,9 +561,10 @@ def bellman_ford(graph: Graph, source: int) -> BellmanFordResult:
     "depois do fato") e detecta o ciclo logo na primeira vez que ele se fecha,
     bem antes do limite de V rodadas mantido como rede de seguranca.
 
-    Custo: O(V*E) no pior caso, mas na pratica muito mais rapido — proximo de
-    O(k*E) com k = numero de rodadas ate convergir (pequeno nestes grafos de
-    "mundo pequeno"), o que torna o algoritmo viavel nos grafos grandes.
+    Custo: O(V*E) no pior caso, mas na pratica muito mais rapido — a otimizacao
+    de Yen corta o numero de passadas ~pela metade e a parada antecipada
+    encerra assim que ha convergencia (poucas rodadas nestes grafos de "mundo
+    pequeno"), o que torna o algoritmo viavel nos grafos grandes.
     """
     n = graph.n_vertices
     if not (1 <= source <= n):
@@ -568,24 +573,26 @@ def bellman_ford(graph: Graph, source: int) -> BellmanFordResult:
     INF = math.inf
     dist = [INF] * (n + 1)
     parent = [0] * (n + 1)
-    in_active = bytearray(n + 1)    # 1 se o vertice esta no conjunto ativo
-
     dist[source] = 0.0
-    active: list[int] = [source]
-    in_active[source] = 1
 
     # so faz sentido procurar ciclo negativo se ha aresta negativa
     check_cycles = graph.has_negative_weight
     has_negative_cycle = False
     rounds = 0
+    changed = True
 
-    while active:
+    while changed:
         rounds += 1
-        nxt: list[int] = []
-        for u in active:
-            in_active[u] = 0
+        changed = False
+
+        # --- Yen, 1a varredura: ordem CRESCENTE, arestas "para frente" (v > u) ---
+        for u in range(1, n + 1):
             du = dist[u]
+            if du == INF:
+                continue
             for v, w in graph.neighbors_with_weights(u):
+                if v <= u:
+                    continue  # aresta "para tras" fica para a 2a varredura
                 alt = du + w
                 if alt < dist[v]:
                     if check_cycles and _is_ancestor(parent, v, u, n):
@@ -593,15 +600,33 @@ def bellman_ford(graph: Graph, source: int) -> BellmanFordResult:
                         break
                     dist[v] = alt
                     parent[v] = u
-                    if not in_active[v]:
-                        in_active[v] = 1
-                        nxt.append(v)
+                    changed = True
+            if has_negative_cycle:
+                break
+        if has_negative_cycle:
+            break
+
+        # --- Yen, 2a varredura: ordem DECRESCENTE, arestas "para tras" (v < u) ---
+        for u in range(n, 0, -1):
+            du = dist[u]
+            if du == INF:
+                continue
+            for v, w in graph.neighbors_with_weights(u):
+                if v >= u:
+                    continue  # aresta "para frente" ja tratada na 1a varredura
+                alt = du + w
+                if alt < dist[v]:
+                    if check_cycles and _is_ancestor(parent, v, u, n):
+                        has_negative_cycle = True
+                        break
+                    dist[v] = alt
+                    parent[v] = u
+                    changed = True
             if has_negative_cycle:
                 break
         if has_negative_cycle or (check_cycles and rounds > n):
             has_negative_cycle = True
             break
-        active = nxt
 
     return BellmanFordResult(
         source=source,
