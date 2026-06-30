@@ -1,0 +1,6 @@
+pesquisador (destino),id,distancia,caminho
+Alan M. Turing,11365,inf,
+J. B. Kruskal,471365,3.4804,Edsger W. Dijkstra -> John R. Rice -> Dan C. Marinescu -> Howard Jay Siegel -> Edwin K. P. Chong -> Ness B. Shroff -> R. Srikant -> Albert G. Greenberg -> J. B. Kruskal
+Jon M. Kleinberg,5709,2.7070,Edsger W. Dijkstra -> A. J. M. van Gasteren -> Gerard Tel -> Hans L. Bodlaender -> Dimitrios M. Thilikos -> Prabhakar Ragde -> Avi Wigderson -> Eli Upfal -> Prabhakar Raghavan -> Jon M. Kleinberg
+Éva Tardos,11386,2.7535,Edsger W. Dijkstra -> A. J. M. van Gasteren -> Gerard Tel -> Hans L. Bodlaender -> Jan van Leeuwen -> Mark H. Overmars -> Micha Sharir -> Haim Kaplan -> Robert Endre Tarjan -> Andrew V. Goldberg -> Serge A. Plotkin -> Éva Tardos
+Daniel R. Figueiredo,343930,2.9428,Edsger W. Dijkstra -> John R. Rice -> Dan C. Marinescu -> Chuang Lin -> Bo Li -> Y. Thomas Hou -> Zhi-Li Zhang -> Donald F. Towsley -> Daniel R. Figueiredo

@@ -17,10 +17,12 @@ from .algorithms import (
     diameter_approx,
     dijkstra_vector,
     dijkstra_heap,
+    bellman_ford,
     shortest_path,
     ConnectedComponents,
     SearchResult,
     ShortestPathResult,
+    BellmanFordResult,
     NegativeWeightError,
 )
 
@@ -41,9 +43,11 @@ __all__ = [
     "diameter_approx",
     "dijkstra_vector",
     "dijkstra_heap",
+    "bellman_ford",
     "shortest_path",
     "ConnectedComponents",
     "SearchResult",
     "ShortestPathResult",
+    "BellmanFordResult",
     "NegativeWeightError",
 ]

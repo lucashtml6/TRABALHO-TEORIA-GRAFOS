@@ -4,22 +4,30 @@ from typing import Iterable
 
 class Graph(ABC):
     """
-    Interface comum das duas representacoes de grafo nao-direcionado.
+    Interface comum das duas representacoes de grafo.
     Convencao: vertices indexados de 1 ate n (o indice 0 nao e usado).
 
     A partir da Parte 2, as arestas podem ter peso (float). Quando o grafo
     e carregado de um arquivo sem coluna de peso, todas as arestas recebem
     peso 1.0 e a flag `is_weighted` permanece False (mantendo a
     compatibilidade com a Parte 1 — BFS/DFS sao indiferentes ao peso).
+
+    A partir da Parte 3, o grafo pode ser direcionado (`directed=True`). Numa
+    aresta direcionada `u -> v`, apenas `u` lista `v` como vizinho; `neighbors`
+    devolve, portanto, os *sucessores* (vizinhos de saida). BFS, DFS, Dijkstra
+    e Bellman-Ford percorrem o grafo seguindo essas arestas de saida, de modo
+    que os algoritmos da Parte 1/2 funcionam sem alteracao tanto em grafos
+    direcionados quanto nao-direcionados.
     """
 
-    def __init__(self, n_vertices: int) -> None:
+    def __init__(self, n_vertices: int, directed: bool = False) -> None:
         if n_vertices < 1:
             raise ValueError("numero de vertices deve ser >= 1")
         self._n = n_vertices
         self._m = 0
         self._is_weighted = False
         self._has_negative_weight = False
+        self._directed = directed
 
     @property
     def n_vertices(self) -> int:
@@ -28,6 +36,10 @@ class Graph(ABC):
     @property
     def n_edges(self) -> int:
         return self._m
+
+    @property
+    def is_directed(self) -> bool:
+        return self._directed
 
     @property
     def is_weighted(self) -> bool:
@@ -78,4 +90,5 @@ class Graph(ABC):
 
     def __repr__(self) -> str:
         kind = "weighted" if self._is_weighted else "unweighted"
-        return f"{type(self).__name__}({kind}, n={self._n}, m={self._m})"
+        orient = "directed" if self._directed else "undirected"
+        return f"{type(self).__name__}({orient}, {kind}, n={self._n}, m={self._m})"

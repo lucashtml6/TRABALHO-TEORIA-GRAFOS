@@ -459,6 +459,159 @@ def dijkstra_heap(graph: Graph, source: int) -> ShortestPathResult:
     )
 
 
+# ---------------------------------------------------------------------------
+# Caminhos minimos com pesos negativos: Bellman-Ford (Parte 3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BellmanFordResult:
+    """Resultado de uma execucao de Bellman-Ford a partir de uma fonte.
+
+    dist[v]   = distancia minima de `source` ate v (math.inf se inalcancavel).
+    parent[v] = predecessor de v na arvore de caminhos minimos (0 para a
+                fonte e para vertices inalcancaveis).
+    has_negative_cycle = True se existe um ciclo de peso negativo *alcancavel*
+                a partir da fonte. Nesse caso as distancias dos vertices
+                afetados nao sao bem definidas (podem ser feitas arbitrariamente
+                pequenas) e nao devem ser interpretadas.
+    """
+    source: int
+    algorithm: str            # "bellman-ford"
+    dist: list[float]
+    parent: list[int]
+    has_negative_cycle: bool
+
+    def reached(self, v: int) -> bool:
+        return self.dist[v] != math.inf
+
+    def path_to(self, v: int) -> list[int]:
+        """Reconstroi o caminho minimo `source -> v` (incluindo extremos).
+
+        Retorna lista vazia se v nao for alcancavel. Em presenca de ciclo
+        negativo o caminho pode nao ser bem definido — use has_negative_cycle.
+        """
+        if not (1 <= v < len(self.dist)):
+            raise ValueError(f"vertice {v} fora do intervalo [1, {len(self.dist) - 1}]")
+        if self.dist[v] == math.inf:
+            return []
+        path: list[int] = []
+        cur = v
+        guard = len(self.dist)  # protege contra ciclos no array parent
+        while cur != 0 and guard > 0:
+            path.append(cur)
+            if cur == self.source:
+                break
+            cur = self.parent[cur]
+            guard -= 1
+        path.reverse()
+        return path
+
+
+def _is_ancestor(parent: list[int], anc: int, node: int, limit: int) -> bool:
+    """True se `anc` e ancestral de `node` na floresta de predecessores
+    (seguindo `parent` a partir de `node` chega-se a `anc`).
+
+    Usado antes de gravar parent[v] = u: se v ja e ancestral de u, fechar a
+    aresta u -> v criaria um ciclo no grafo de predecessores — e, pelo lema do
+    Bellman-Ford, todo ciclo de predecessores e negativo. `limit` (= n) e uma
+    rede de seguranca contra caminhar indefinidamente.
+    """
+    x = node
+    steps = 0
+    while x != 0:
+        if x == anc:
+            return True
+        x = parent[x]
+        steps += 1
+        if steps > limit:
+            return True
+    return False
+
+
+def bellman_ford(graph: Graph, source: int) -> BellmanFordResult:
+    """Bellman-Ford para caminhos minimos a partir de `source`.
+
+    Diferente do Dijkstra, aceita arestas de peso negativo e detecta a
+    existencia de um ciclo negativo alcancavel pela fonte. Aplicamos as
+    *duas otimizacoes* discutidas em aula sobre o Bellman-Ford classico
+    (que sempre executa V-1 varreduras completas das E arestas, Theta(V*E)):
+
+    Otimizacao 1 — parada antecipada. Trabalhamos por *rodadas*: cada rodada
+    relaxa as arestas e calcula o conjunto de vertices melhorados. Se uma
+    rodada nao melhora nenhuma estimativa (conjunto ativo vazio), o algoritmo
+    ja convergiu e paramos imediatamente, sem completar as V-1 passadas.
+
+    Otimizacao 2 — processar apenas vertices atualizados (conjunto ativo). Em
+    vez de relaxar TODAS as arestas a cada rodada, mantemos o conjunto dos
+    vertices cuja estimativa mudou na rodada anterior: so as arestas de saida
+    desses vertices podem gerar melhora na rodada seguinte (e a ideia da
+    fila/SPFA, aqui organizada por camadas).
+
+    Deteccao de ciclo negativo: sem arestas negativas nenhum ciclo negativo
+    pode existir e pulamos a checagem (custo zero). Havendo arestas negativas,
+    *antes* de gravar parent[v] = u verificamos se v ja e ancestral de u na
+    floresta de predecessores (`_is_ancestor`); em caso afirmativo, fechar a
+    aresta criaria um ciclo de predecessores — necessariamente negativo —, e
+    abortamos. Isso evita ciclos transitorios (falsos positivos de varreduras
+    "depois do fato") e detecta o ciclo logo na primeira vez que ele se fecha,
+    bem antes do limite de V rodadas mantido como rede de seguranca.
+
+    Custo: O(V*E) no pior caso, mas na pratica muito mais rapido — proximo de
+    O(k*E) com k = numero de rodadas ate convergir (pequeno nestes grafos de
+    "mundo pequeno"), o que torna o algoritmo viavel nos grafos grandes.
+    """
+    n = graph.n_vertices
+    if not (1 <= source <= n):
+        raise ValueError(f"fonte {source} fora do intervalo [1, {n}]")
+
+    INF = math.inf
+    dist = [INF] * (n + 1)
+    parent = [0] * (n + 1)
+    in_active = bytearray(n + 1)    # 1 se o vertice esta no conjunto ativo
+
+    dist[source] = 0.0
+    active: list[int] = [source]
+    in_active[source] = 1
+
+    # so faz sentido procurar ciclo negativo se ha aresta negativa
+    check_cycles = graph.has_negative_weight
+    has_negative_cycle = False
+    rounds = 0
+
+    while active:
+        rounds += 1
+        nxt: list[int] = []
+        for u in active:
+            in_active[u] = 0
+            du = dist[u]
+            for v, w in graph.neighbors_with_weights(u):
+                alt = du + w
+                if alt < dist[v]:
+                    if check_cycles and _is_ancestor(parent, v, u, n):
+                        has_negative_cycle = True
+                        break
+                    dist[v] = alt
+                    parent[v] = u
+                    if not in_active[v]:
+                        in_active[v] = 1
+                        nxt.append(v)
+            if has_negative_cycle:
+                break
+        if has_negative_cycle or (check_cycles and rounds > n):
+            has_negative_cycle = True
+            break
+        active = nxt
+
+    return BellmanFordResult(
+        source=source,
+        algorithm="bellman-ford",
+        dist=dist,
+        parent=parent,
+        has_negative_cycle=has_negative_cycle,
+    )
+
+
 def shortest_path(
     graph: Graph,
     source: int,

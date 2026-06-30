@@ -3,19 +3,20 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Dados de entrada grandes (baixar separadamente)
+# Dados de entrada grandes (~4 GB — o professor ja os possui)
 GRAFOS/
 GRAFOS 2/
+GRAFOS 3/
 
-# Apresentação (binário, gerada a partir de gerar_slides.py)
-relatorio/apresentacao.pptx
-
-# Descrição do trabalho
-DESCRICAO/
-
-# Saídas geradas pelo programa
+# Saidas de demonstracao (regeneraveis)
 saidas/
-relatorio/resultados/
+
+# Scripts e arquivos de geracao de slides
+relatorio/gerar_slides*.py
+*.pptx
+
+# Descricao do trabalho (enunciados em PDF)
+DESCRICAO/
 
 # Config local do Claude
 .claude/settings.local.json

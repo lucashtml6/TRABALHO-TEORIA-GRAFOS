@@ -1,0 +1,7 @@
+grafo,n,m,mem_lista_MB,mem_matriz_MB,razao
+grafo_1.txt,10000,109921,10.6,95.4,9.0x
+grafo_2.txt,49948,1298710,110.2,2152.7,19.5x
+grafo_3.txt,375000,765615,99.4,INVIAVEL,-
+grafo_4.txt,375000,8186986,757.1,INVIAVEL,-
+grafo_5.txt,4843750,13168911,1591.5,INVIAVEL,-
+grafo_6.txt,4843750,46469479,4584.3,INVIAVEL,-

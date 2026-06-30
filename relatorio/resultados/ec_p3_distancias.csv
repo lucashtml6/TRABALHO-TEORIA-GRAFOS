@@ -1,0 +1,6 @@
+grafo,algoritmo,d_10_100,d_20_100,d_30_100,ciclo_negativo
+grafo_W_1.txt,bellman-ford,inf,3.59,inf,1
+grafo_W_2.txt,bellman-ford,10.469999999999999,8.479999999999999,8.71,0
+grafo_W_2.txt,dijkstra,10.469999999999999,8.479999999999999,8.71,0
+grafo_W_3.txt,bellman-ford,4.63,5.42,4.67,0
+grafo_W_3.txt,dijkstra,4.63,5.42,4.67,0

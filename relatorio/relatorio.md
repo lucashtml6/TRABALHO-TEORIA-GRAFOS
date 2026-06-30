@@ -1,7 +1,5 @@
 # Trabalho de Teoria dos Grafos — Parte 1
-
-**Disciplina:** COS 242 — Teoria dos Grafos — 2025/2  
-**Universidade:** Universidade Federal de Viçosa   
+   
 ---
 
 ## 1. Decisões de projeto e implementação

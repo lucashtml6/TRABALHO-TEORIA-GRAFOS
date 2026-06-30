@@ -1,11 +1,12 @@
-# Trabalho de Teoria dos Grafos — Partes 1 e 2
+# Trabalho de Teoria dos Grafos — Partes 1, 2 e 3
 
-Biblioteca em Python 3 para representação e análise de grafos não-direcionados, desenvolvida para a disciplina **COS 242 — Teoria dos Grafos (2025/2)** da Universidade Federal de Viçosa.
+Biblioteca em Python 3 para representação e análise de grafos (direcionados e não-direcionados), desenvolvida para a disciplina **COS 242 — Teoria dos Grafos (2025/2)** da Universidade Federal de Viçosa.
 
 Implementa duas representações (lista e matriz de adjacência) sob uma interface comum, e os algoritmos:
 
 - **Parte 1**: BFS, DFS, componentes conexas, distâncias (não-ponderadas) e diâmetro.
 - **Parte 2**: grafos com pesos reais nas arestas e algoritmo de **Dijkstra em duas formas** (vetor Θ(V²) e heap O((V+E) log V) com lazy deletion). Detecção e recusa de pesos negativos. Suporte a rótulos de vértices (`nome → id`) para a rede de colaboração entre pesquisadores.
+- **Parte 3**: **grafos direcionados** com pesos (flag `directed`), BFS/DFS/Dijkstra rodando em grafos direcionados, grafo **invertido** (transposto), e algoritmo de **Bellman-Ford** com as duas otimizações (conjunto ativo + parada antecipada) e detecção de ciclo negativo. → **[README_P3.md](README_P3.md)** (base para os slides).
 
 ## Estrutura do projeto
 
@@ -107,10 +108,22 @@ python estudos/ec_p2_runner_grandes.py --only 4 5
 python estudos/ec10_rede_colaboracao.py
 ```
 
+Para rodar a Parte 3 (grafos direcionados em `GRAFOS 3/`):
+
+```bash
+# Demo: grafo direcionado pequeno, Bellman-Ford, grafo invertido,
+# comparação com Dijkstra e detecção de ciclo negativo
+python main_p3.py
+
+# Estudos de caso: distância de 10/20/30 até 100, tempo BF vs Dijkstra
+python estudos/ec_p3_runner.py --only 1 2 3
+```
+
 ## Relatório
 
 - Parte 1: [relatorio/relatorio.md](relatorio/relatorio.md)
 - Parte 2: [relatorio/relatorio_P2.md](relatorio/relatorio_P2.md)
+- Parte 3: [relatorio/relatorio_P3.md](relatorio/relatorio_P3.md)
 
 ## Observações de implementação
 

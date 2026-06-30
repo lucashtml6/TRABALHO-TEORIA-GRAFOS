@@ -17,16 +17,26 @@ def load_graph(
     path: PathLike,
     representation: Representation = "list",
     dedup: bool = True,
+    directed: bool = False,
+    reverse: bool = False,
 ) -> Graph:
     """
-    Le um grafo nao-direcionado de um arquivo texto.
+    Le um grafo de um arquivo texto.
 
     Formato esperado:
         - linha 1: numero de vertices N
         - linhas seguintes: 'u v' (Parte 1) ou 'u v w' (Parte 2, w = peso real)
 
-    O formato e detectado automaticamente pelo numero de tokens na primeira
-    aresta (2 -> nao ponderado; 3 -> ponderado).
+    O formato (ponderado ou nao) e detectado automaticamente pelo numero de
+    tokens na primeira aresta (2 -> nao ponderado; 3 -> ponderado).
+
+    `directed` (Parte 3): se True, cada linha 'u v [w]' representa o arco
+    direcionado u -> v (a direcao segue a ordem dos vertices na linha). Se
+    False (default), a aresta e nao-direcionada (compatibilidade Parte 1/2).
+
+    `reverse`: se True (so faz sentido com directed=True), inverte cada arco
+    na carga (u -> v vira v -> u), produzindo o grafo transposto sem custo de
+    memoria extra. Util para o estudo de caso "distancia ATE o vertice 100".
 
     O loader e otimizado para grafos grandes: le o arquivo inteiro de uma
     vez, faz um unico `str.split()`, e popula a lista de adjacencia
@@ -40,16 +50,18 @@ def load_graph(
     """
     path = Path(path)
     if representation == "list":
-        return _load_list_fast(path, dedup)
+        return _load_list_fast(path, dedup, directed, reverse)
     elif representation == "matrix":
-        return _load_matrix(path, dedup)
+        return _load_matrix(path, dedup, directed, reverse)
     else:
         raise ValueError(
             f"representation deve ser 'list' ou 'matrix', recebido: {representation!r}"
         )
 
 
-def _load_list_fast(path: Path, dedup: bool) -> Graph:
+def _load_list_fast(
+    path: Path, dedup: bool, directed: bool = False, reverse: bool = False
+) -> Graph:
     """Loader rapido especifico para lista de adjacencia.
 
     Le todo o arquivo de uma vez, tokeniza em uma chamada e popula
@@ -76,7 +88,7 @@ def _load_list_fast(path: Path, dedup: bool) -> Graph:
         # 2) le o resto do arquivo de uma vez (texto bruto)
         rest = f.read()
 
-    graph = GraphList(n)
+    graph = GraphList(n, directed=directed)
     if not rest.strip():
         return graph  # grafo sem arestas
 
@@ -105,7 +117,9 @@ def _load_list_fast(path: Path, dedup: bool) -> Graph:
             f"numero de tokens ({n_tok}) nao e multiplo de {cols} — arquivo malformado"
         )
 
-    # 4) preenche _adj diretamente — bypass add_edge para velocidade
+    # 4) preenche _adj diretamente — bypass add_edge para velocidade.
+    #    Em grafo direcionado registramos so o arco u -> v (ou v -> u se
+    #    reverse=True); em grafo nao-direcionado registramos as duas pontas.
     adj = graph._adj
     has_neg = False
     weighted_flag = False
@@ -117,8 +131,14 @@ def _load_list_fast(path: Path, dedup: bool) -> Graph:
             if u == v:
                 continue
             w = float(tokens[i + 2])
-            adj[u].append((v, w))
-            adj[v].append((u, w))
+            if directed:
+                if reverse:
+                    adj[v].append((u, w))
+                else:
+                    adj[u].append((v, w))
+            else:
+                adj[u].append((v, w))
+                adj[v].append((u, w))
             m += 1
             if w != 1.0:
                 weighted_flag = True
@@ -131,8 +151,14 @@ def _load_list_fast(path: Path, dedup: bool) -> Graph:
             v = int(tokens[i + 1])
             if u == v:
                 continue
-            adj[u].append((v, 1.0))
-            adj[v].append((u, 1.0))
+            if directed:
+                if reverse:
+                    adj[v].append((u, 1.0))
+                else:
+                    adj[u].append((v, 1.0))
+            else:
+                adj[u].append((v, 1.0))
+                adj[v].append((u, 1.0))
             m += 1
 
     graph._m = m
@@ -144,7 +170,9 @@ def _load_list_fast(path: Path, dedup: bool) -> Graph:
     return graph
 
 
-def _load_matrix(path: Path, dedup: bool) -> Graph:
+def _load_matrix(
+    path: Path, dedup: bool, directed: bool = False, reverse: bool = False
+) -> Graph:
     """Loader linha-a-linha para matriz. Mantemos o caminho simples — a
     matriz e usada so em grafos pequenos onde performance nao e critica."""
     with path.open("r", encoding="utf-8") as f:
@@ -158,7 +186,7 @@ def _load_matrix(path: Path, dedup: bool) -> Graph:
                 f"primeira linha deve ser o numero de vertices, encontrei: {first!r}"
             ) from e
 
-        graph = GraphMatrix(n)
+        graph = GraphMatrix(n, directed=directed)
         weighted = None
 
         for line_num, raw in enumerate(f, start=2):
@@ -168,11 +196,13 @@ def _load_matrix(path: Path, dedup: bool) -> Graph:
             parts = line.split()
             if weighted is None:
                 weighted = len(parts) == 3
+            u, v = int(parts[0]), int(parts[1])
+            if directed and reverse:
+                u, v = v, u
             if weighted:
-                u, v = int(parts[0]), int(parts[1])
                 graph.add_edge(u, v, float(parts[2]))
             else:
-                graph.add_edge(int(parts[0]), int(parts[1]))
+                graph.add_edge(u, v)
 
         if weighted:
             graph._mark_weighted()

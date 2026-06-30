@@ -18,15 +18,16 @@ class GraphMatrix(Graph):
     em todo lugar e dificulta a vetorizacao.
     """
 
-    def __init__(self, n_vertices: int) -> None:
-        super().__init__(n_vertices)
+    def __init__(self, n_vertices: int, directed: bool = False) -> None:
+        super().__init__(n_vertices, directed)
         self._adj = np.zeros((n_vertices + 1, n_vertices + 1), dtype=bool)
         self._w = np.zeros((n_vertices + 1, n_vertices + 1), dtype=np.float32)
 
     def add_edge(self, u: int, v: int, weight: float = 1.0) -> bool:
         """
-        Adiciona aresta {u, v} com peso. Self-loops sao ignorados; duplicatas
+        Adiciona a aresta com peso. Self-loops sao ignorados; duplicatas
         nao incrementam o contador (matriz e idempotente — mantem o primeiro peso).
+        Num grafo direcionado marca apenas a posicao (u, v).
         """
         self._validate_vertex(u)
         self._validate_vertex(v)
@@ -36,9 +37,10 @@ class GraphMatrix(Graph):
             return False
         w = float(weight)
         self._adj[u, v] = True
-        self._adj[v, u] = True
         self._w[u, v] = w
-        self._w[v, u] = w
+        if not self._directed:
+            self._adj[v, u] = True
+            self._w[v, u] = w
         self._m += 1
         if w != 1.0:
             self._is_weighted = True
